@@ -1,29 +1,35 @@
 from pprint import pprint
 import xml.etree.ElementTree as ET
 import numpy as np
+import copy
+import json
+from datetime import datetime
 
 
 class LogEntry:
     statuses: tuple = ("WARNING", "INFO", "ERROR")
 
-    logs_counter = 0
+    logs_counter = {
+        statuses[0]: 0,
+        statuses[1]: 0,
+        statuses[2]: 0,
+    }
 
     def __init__(self, time_stamp: str, severity: str, message: str):
         if all(
             [
                 time_stamp != "",
-                isinstance(time_stamp, type("")),
+                isinstance(time_stamp, str),
                 severity != "",
-                isinstance(severity, type("")),
+                isinstance(severity, str),
                 message != "",
-                isinstance(message, type("")),
+                isinstance(message, str),
             ]
         ):
             self.timestamp = self.get_time_stamp(time_stamp)
             self.severity = self.select_severity(severity)
             self.message = message
-            print("object contents: ", self.timestamp, self.severity, self.message)
-            self.increase_counter()
+            self.increase_counter(self.severity)
 
     def get_time_stamp(self, iso_timestamp: str) -> str:
         _timestamp = ""
@@ -64,15 +70,31 @@ class LogEntry:
         else:
             raise ValueError("Severity message is not understood")
 
-    def increase_counter(cls):
+    @classmethod
+    def increase_counter(cls, severity):
+        cls.logs_counter[severity] += 1
 
-        cls.logs_counter += 1
+    def get_dict_from_object(self) -> dict:
+        new_dict = {
+            "timestamp": self.timestamp,
+            "severity": self.severity,
+            "message": _message,
+        }
+        return new_dict
 
 
 def read_string_from_file(file_name: str):
     with open(file_name, "r", encoding="utf-8") as f:
         read_data = f.read()
     return read_data if read_data != "" else "File is empty"
+
+
+def wite_to_file(f_contents: str, file_name):
+
+    current_time = datetime.now()
+    _file_name = file_name + "_" + str(current_time.timestamp()) + ".json"
+    with open(_file_name, "w", encoding="utf-8") as f:
+        f.write(f_contents)
 
 
 def get_xml_from_string(xml_file: str) -> ET.Element:
@@ -88,7 +110,7 @@ def get_xml_from_string(xml_file: str) -> ET.Element:
 
 
 if __name__ == "__main__":
-    f_contents = read_string_from_file("data.xml")
+    f_contents = read_string_from_file("data_negative.xml")
     xml_tree = get_xml_from_string(f_contents)
 
     logs_dict = {
@@ -100,20 +122,22 @@ if __name__ == "__main__":
         _timestamp = ""
         _severity = ""
         _message = ""
-        for str in log:
+        for _str in log:
 
-            if str.tag == "timestamp":
-                _timestamp = str.text
-            elif str.tag == "severity":
-                _severity = str.text
-            elif str.tag == "message":
-                _message = str.text
+            if _str.tag == "timestamp":
+                _timestamp = _str.text
+            elif _str.tag == "severity":
+                _severity = _str.text
+            elif _str.tag == "message":
+                _message = _str.text
             else:
                 raise ValueError("Unrecognized tag in the XML")
 
-        # print(_timestamp, _severity, _message)
+        prev_log_cnt = copy.copy(LogEntry.logs_counter)
         new_log = LogEntry(_timestamp, _severity, _message)
-        logs_dict[new_log.severity].append(new_log)
-        print(logs_dict[new_log.severity][LogEntry.logs_counter - 1].message)
+        if LogEntry.logs_counter != prev_log_cnt:
+            logs_dict[new_log.severity].append(new_log.get_dict_from_object())
 
-    pprint(logs_dict)
+    for key, value in logs_dict.items():
+        json_str = json.dumps(value, indent=3)
+        wite_to_file(json_str, key)
