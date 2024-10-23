@@ -1,0 +1,17 @@
+<logs>
+	<log>
+		<timestamp>2024-10-20T10:17:45</timestamp>
+		<severity>WARNING</severity>
+		<message>Low disk space on drive C.</message>
+	</log>
+	<log>
+		<timestamp>2024-10-20T10:20:12</timestamp>
+		<severity>INFO</severity>
+		<message>User USR connected to database</message>
+	</log>
+	<log>
+		<timestamp>2024-10-20T10:30:50</timestamp>
+		<severity>ERROR</severity>
+		<message>ValueError: Unexpected input type received.</message>
+	</log>
+</logs>
