@@ -71,7 +71,7 @@ class LogEntry:
         """
         Check given severity against constant data nad return it
         """
-        
+
         if severity.upper() in self.statuses:
             return severity.upper()
         else:
@@ -88,7 +88,7 @@ class LogEntry:
         new_dict = {
             "timestamp": self.timestamp,
             "severity": self.severity,
-            "message": _message,
+            "message": self.message,
         }
         return new_dict
 
@@ -97,7 +97,7 @@ def read_string_from_file(file_name: str) -> str:
     """
     Read file contents and return string
     """
-  
+
     with open(file_name, "r", encoding="utf-8") as f:
         read_data = f.read()
     return read_data if read_data != "" else "File is empty"
@@ -128,7 +128,7 @@ def get_xml_from_string(xml_file: str) -> ET.Element:
 
 
 if __name__ == "__main__":
-    f_contents = read_string_from_file("data_negative.xml")
+    f_contents = read_string_from_file("data.xml")
     xml_tree = get_xml_from_string(f_contents)
 
     logs_dict = {
@@ -157,5 +157,5 @@ if __name__ == "__main__":
             logs_dict[new_log.severity].append(new_log.get_dict_from_object())
 
     for key, value in logs_dict.items():
-        json_str = json.dumps(value, indent=3)
+        json_str = json.dumps({"messages":value}, indent=3)
         wite_to_file(json_str, key, ".json")
