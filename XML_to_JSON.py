@@ -32,6 +32,9 @@ class LogEntry:
             self.increase_counter(self.severity)
 
     def get_time_stamp(self, iso_timestamp: str) -> str:
+        """
+        Parse ISO timestamp and return DD-MM-YYYY HH:MM:SS
+        """
         _timestamp = ""
         if "T" in iso_timestamp:
             _date, _time = iso_timestamp.split("T")
@@ -65,6 +68,10 @@ class LogEntry:
         return _timestamp
 
     def select_severity(self, severity: str) -> str:
+        """
+        Check given severity against constant data nad return it
+        """
+        
         if severity.upper() in self.statuses:
             return severity.upper()
         else:
@@ -72,6 +79,9 @@ class LogEntry:
 
     @classmethod
     def increase_counter(cls, severity):
+        """
+        Keep track of number of correctly parsed messages
+        """
         cls.logs_counter[severity] += 1
 
     def get_dict_from_object(self) -> dict:
@@ -83,22 +93,30 @@ class LogEntry:
         return new_dict
 
 
-def read_string_from_file(file_name: str):
+def read_string_from_file(file_name: str) -> str:
+    """
+    Read file contents and return string
+    """
+  
     with open(file_name, "r", encoding="utf-8") as f:
         read_data = f.read()
     return read_data if read_data != "" else "File is empty"
 
 
-def wite_to_file(f_contents: str, file_name):
-
+def wite_to_file(f_contents: str, file_name, extension):
+    """
+    Write to string to file adding timestamp of creation
+    """
     current_time = datetime.now()
-    _file_name = file_name + "_" + str(current_time.timestamp()) + ".json"
+    _file_name = file_name + "_" + str(current_time.timestamp()) + extension
     with open(_file_name, "w", encoding="utf-8") as f:
         f.write(f_contents)
 
 
 def get_xml_from_string(xml_file: str) -> ET.Element:
-
+    """
+    Parse string to XML element
+    """
     if xml_file == "File is empty":
         raise ValueError("Check contents of input file as it appears to be empty")
     try:
@@ -140,4 +158,4 @@ if __name__ == "__main__":
 
     for key, value in logs_dict.items():
         json_str = json.dumps(value, indent=3)
-        wite_to_file(json_str, key)
+        wite_to_file(json_str, key, ".json")
