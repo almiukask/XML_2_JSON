@@ -46,37 +46,8 @@ class LogEntry:
         Parse ISO timestamp and return DD-MM-YYYY HH:MM:SS
         """
         # handle this with library
-        _timestamp = ""
-        if "T" in iso_timestamp:
-            _date, _time = iso_timestamp.split("T")
-            if len(_date) == 10:
-
-                try:
-                    _years, _months, _days = _date.split("-")
-                except Exception as e:
-                    pprint(f"Parsing failed possible reason: {e}")
-                else:
-                    if all([_years.isdigit(), _months.isdigit, _days.isdigit()]):
-                        pass
-                    else:
-                        raise ValueError("Date contains wrong data")
-            else:
-                raise ValueError("Timestamp is in wrong format")
-            if len(_time) == 8:
-                try:
-                    _hours, _minutes, _seconds = _time.split(":")
-                except Exception as e:
-                    pprint(f"Parsing failed possible reason: {e}")
-                else:
-                    if all([_hours.isdigit(), _minutes.isdigit, _seconds.isdigit()]):
-                        pass
-                    else:
-                        raise ValueError("Time contains wrong data")
-            else:
-                raise ValueError("Timestamp is in wrong format")
-        else:
-            raise ValueError("Timestamp is in wrong format")
-        _timestamp = _days + "-" + _months + "-" + _years + " " + _time
+        _date = datetime.fromisoformat(iso_timestamp)
+        _timestamp = _date.strftime("%d-%m-%Y %H:%M:%S")
         return _timestamp
 
     def is_severity(self, severity: str) -> bool:
@@ -208,4 +179,4 @@ if __name__ == "__main__":
 
         for key, value in logs_dict.items():
             json_str = json.dumps({"messages": value}, indent=4)
-            write_to_file(json_str, key+'_'+str(file_counter), ".json")
+            write_to_file(json_str, key + "_" + str(file_counter), ".json")
