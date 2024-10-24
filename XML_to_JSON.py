@@ -1,33 +1,43 @@
 from pprint import pprint
 import xml.etree.ElementTree as ET
-import numpy as np
 import copy
 import json
 from datetime import datetime
+from collections import namedtuple
+from pathlib import Path
+import os
+
+statusesType = namedtuple("Statuses", "warn, info, error")
+TIMESTAMP = "timestamp"
+SEVERITY = "severity"
+MESSAGE = "message"
 
 
 class LogEntry:
-    statuses: tuple = ("WARNING", "INFO", "ERROR")
+
+    statuses: tuple = statusesType(warn="WARNING", info="INFO", error="ERROR")
 
     logs_counter = {
-        statuses[0]: 0,
-        statuses[1]: 0,
-        statuses[2]: 0,
+        statuses.warn: 0,
+        statuses.info: 0,
+        statuses.error: 0,
     }
 
     def __init__(self, time_stamp: str, severity: str, message: str):
         if all(
             [
-                time_stamp != "",
+                # add check for sevserit bool and iso timestamp here
+                time_stamp,
                 isinstance(time_stamp, str),
-                severity != "",
+                severity,
                 isinstance(severity, str),
-                message != "",
+                self.is_severity(severity),
+                message,
                 isinstance(message, str),
             ]
         ):
             self.timestamp = self.get_time_stamp(time_stamp)
-            self.severity = self.select_severity(severity)
+            self.severity = severity
             self.message = message
             self.increase_counter(self.severity)
 
@@ -35,10 +45,12 @@ class LogEntry:
         """
         Parse ISO timestamp and return DD-MM-YYYY HH:MM:SS
         """
+        # handle this with library
         _timestamp = ""
         if "T" in iso_timestamp:
             _date, _time = iso_timestamp.split("T")
             if len(_date) == 10:
+
                 try:
                     _years, _months, _days = _date.split("-")
                 except Exception as e:
@@ -67,15 +79,11 @@ class LogEntry:
         _timestamp = _days + "-" + _months + "-" + _years + " " + _time
         return _timestamp
 
-    def select_severity(self, severity: str) -> str:
+    def is_severity(self, severity: str) -> bool:
         """
-        Check given severity against constant data nad return it
+        Check given severity against constant data
         """
-
-        if severity.upper() in self.statuses:
-            return severity.upper()
-        else:
-            raise ValueError("Severity message is not understood")
+        return True if severity in self.statuses else False
 
     @classmethod
     def increase_counter(cls, severity):
@@ -85,31 +93,36 @@ class LogEntry:
         cls.logs_counter[severity] += 1
 
     def get_dict_from_object(self) -> dict:
+        """
+        Form a dictionary from object contents
+        """
         new_dict = {
-            "timestamp": self.timestamp,
-            "severity": self.severity,
-            "message": self.message,
+            TIMESTAMP: self.timestamp,
+            SEVERITY: self.severity,
+            MESSAGE: self.message,
         }
         return new_dict
 
 
 def read_string_from_file(file_name: str) -> str:
     """
-    Read file contents and return string
+    Read file contents and return a string
     """
 
     with open(file_name, "r", encoding="utf-8") as f:
         read_data = f.read()
-    return read_data if read_data != "" else "File is empty"
+    return read_data
 
 
-def wite_to_file(f_contents: str, file_name, extension):
+def write_to_file(f_contents: str, file_name: str, extension: str):
     """
     Write to string to file adding timestamp of creation
     """
     current_time = datetime.now()
+    _, output_dir_path = check_create_folder_in_main("output")
     _file_name = file_name + "_" + str(current_time.timestamp()) + extension
-    with open(_file_name, "w", encoding="utf-8") as f:
+    _file_path = output_dir_path / _file_name
+    with open(_file_path, "w", encoding="utf-8") as f:
         f.write(f_contents)
 
 
@@ -117,7 +130,7 @@ def get_xml_from_string(xml_file: str) -> ET.Element:
     """
     Parse string to XML element
     """
-    if xml_file == "File is empty":
+    if not xml_file:
         raise ValueError("Check contents of input file as it appears to be empty")
     try:
         read_xml = ET.fromstring(xml_file)
@@ -127,35 +140,72 @@ def get_xml_from_string(xml_file: str) -> ET.Element:
         return read_xml
 
 
+def check_create_folder_in_main(folder_name: str) -> tuple[bool, Path]:
+    """
+    Checks whether folder exists if not creates. Returns path and bool if folder was created
+    """
+    folder_path = Path(__file__).parent / folder_name
+    if folder_path.exists() and folder_path.is_dir():
+        return (False, folder_path)
+    else:
+        try:
+            folder_path.mkdir()
+        except PermissionError:
+            print(f"Permission denied: Unable to create '{folder_path}'.")
+        except Exception as e:
+            print(f"An error occurred: {e}")
+        else:
+            return (True, folder_path)
+
+
+def handle_and_scan_input_folder() -> list:
+    """
+    Handles input folder for XMLs to be placed for parsing. If fodler exists retruns list of files
+    """
+    dir_created, input_dir_path = check_create_folder_in_main("input")
+    _files = list(input_dir_path.glob("**/*.xml"))
+    if dir_created:
+        raise FileExistsError("Input folder just created, please add XMLs to parse")
+    if len(_files) < 1:
+        raise FileExistsError("No files (XMLs) are present in input folder")
+    return _files
+
+
 if __name__ == "__main__":
-    f_contents = read_string_from_file("data.xml")
-    xml_tree = get_xml_from_string(f_contents)
 
-    logs_dict = {
-        LogEntry.statuses[0]: [],
-        LogEntry.statuses[1]: [],
-        LogEntry.statuses[2]: [],
-    }
-    for log in xml_tree:
-        _timestamp = ""
-        _severity = ""
-        _message = ""
-        for _str in log:
+    files = handle_and_scan_input_folder()
+    file_counter = 0
 
-            if _str.tag == "timestamp":
-                _timestamp = _str.text
-            elif _str.tag == "severity":
-                _severity = _str.text
-            elif _str.tag == "message":
-                _message = _str.text
-            else:
-                raise ValueError("Unrecognized tag in the XML")
+    for file in files:
+        f_contents = read_string_from_file(file)
+        xml_tree = get_xml_from_string(f_contents)
+        file_counter += 1
 
-        prev_log_cnt = copy.copy(LogEntry.logs_counter)
-        new_log = LogEntry(_timestamp, _severity, _message)
-        if LogEntry.logs_counter != prev_log_cnt:
-            logs_dict[new_log.severity].append(new_log.get_dict_from_object())
+        logs_dict = {
+            LogEntry.statuses.warn: [],
+            LogEntry.statuses.info: [],
+            LogEntry.statuses.error: [],
+        }
+        for log in xml_tree:
+            _timestamp = ""
+            _severity = ""
+            _message = ""
+            for _str in log:
 
-    for key, value in logs_dict.items():
-        json_str = json.dumps({"messages":value}, indent=3)
-        wite_to_file(json_str, key, ".json")
+                if _str.tag == TIMESTAMP:
+                    _timestamp = _str.text
+                elif _str.tag == SEVERITY:
+                    _severity = _str.text
+                elif _str.tag == MESSAGE:
+                    _message = _str.text
+                else:
+                    raise ValueError("Unrecognized tag in the XML")
+
+            prev_log_cnt = copy.copy(LogEntry.logs_counter)
+            new_log = LogEntry(_timestamp, _severity, _message)
+            if LogEntry.logs_counter != prev_log_cnt:
+                logs_dict[new_log.severity].append(new_log.get_dict_from_object())
+
+        for key, value in logs_dict.items():
+            json_str = json.dumps({"messages": value}, indent=4)
+            write_to_file(json_str, key+'_'+str(file_counter), ".json")
