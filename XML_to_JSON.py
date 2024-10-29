@@ -5,11 +5,16 @@ import json
 from datetime import datetime
 from collections import namedtuple
 from pathlib import Path
+import argparse
 
 statusesType = namedtuple("Statuses", "warn, info, error")
 TIMESTAMP = "timestamp"
 SEVERITY = "severity"
 MESSAGE = "message"
+
+t_start = datetime.min
+t_stop = datetime.max
+filtered_severity = []
 
 
 class LogEntry:
@@ -28,9 +33,11 @@ class LogEntry:
                 time_stamp,
                 isinstance(time_stamp, str),
                 self.check_timestamp(time_stamp),
+                self.check_belongs_to_interval(time_stamp, t_start, t_stop),
                 severity,
                 isinstance(severity, str),
                 self.is_severity(severity),
+                severity in filtered_severity,
                 message,
                 isinstance(message, str),
             ]
@@ -41,6 +48,7 @@ class LogEntry:
             self.increase_counter(self.severity)
 
     def check_timestamp(self, timestamp: str) -> bool:
+        """Check whether timestamp is valid"""
         try:
             _ = self.get_time_stamp(timestamp)
         except:
@@ -62,6 +70,14 @@ class LogEntry:
         Check given severity against constant data
         """
         return severity in self.statuses
+
+    def check_belongs_to_interval(self, timestamp: str, t_start: datetime, t_stop: datetime):
+        """ Given the time stamp and interval ends check if tstamp is in the interval"""
+        t = datetime.fromisoformat(timestamp)
+        if t >= t_start and t <= t_stop:
+            return True
+        else:
+            return False
 
     @classmethod
     def increase_counter(cls, severity):
@@ -139,8 +155,44 @@ def handle_and_scan_input_folder() -> list:
     return _files
 
 
+def get_arguments() -> list[tuple, datetime, datetime]:
+    """
+    Parse teh arguments when launching the .py file eternally
+    """
+
+    parser = argparse.ArgumentParser(
+        prog="XML2JSON", description="Parses XML messages to JSON"
+    )
+    parser.add_argument(
+        "-s", "--sev", help="filter by severity. possible: WARNING, INFO, ERROR"
+    )
+    parser.add_argument(
+        "-t1", "--tstart", help="time from to apply filter. Takes in date"
+    )
+    parser.add_argument("-t2", "--tstop", help="time to to apply filter Takes in date")
+    args = parser.parse_args()
+
+    if LogEntry.is_severity(LogEntry, str(args.sev)):
+        filt_severity = [str(args.sev)]
+    else:
+        filt_severity = list(tuple(LogEntry.statuses)).copy()
+        pprint("Values for --sev not provided properly - no filter will be applied")
+    try:
+        t_start = datetime.fromisoformat(args.tstart)
+    except:
+        pprint("Values for --tstart not provided properly - no filter will be applied")
+        t_start = datetime.min
+    try:
+        t_stop = datetime.fromisoformat(args.tstop)
+    except:
+        pprint("Values for --tstop not provided properly - no filter will be applied")
+        t_stop = datetime.max
+    return [filt_severity, t_start, t_stop]
+
+
 if __name__ == "__main__":
 
+    filtered_severity, t_start, t_stop = get_arguments()
     files = handle_and_scan_input_folder()
     file_counter = 0
 
@@ -175,5 +227,6 @@ if __name__ == "__main__":
                 logs_dict[new_log.severity].append(new_log.get_dict_from_object())
 
         for key, value in logs_dict.items():
-            json_str = json.dumps({"messages": value}, indent=4)
-            write_to_file(json_str, key + "_" + str(file_counter), ".json")
+            if value != []:
+                json_str = json.dumps({"messages": value}, indent=4)
+                write_to_file(json_str, key + "_" + str(file_counter), ".json")
