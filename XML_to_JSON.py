@@ -5,7 +5,6 @@ import json
 from datetime import datetime
 from collections import namedtuple
 from pathlib import Path
-import os
 
 statusesType = namedtuple("Statuses", "warn, info, error")
 TIMESTAMP = "timestamp"
@@ -26,9 +25,9 @@ class LogEntry:
     def __init__(self, time_stamp: str, severity: str, message: str):
         if all(
             [
-                # add check for sevserit bool and iso timestamp here
                 time_stamp,
                 isinstance(time_stamp, str),
+                self.check_timestamp(time_stamp),
                 severity,
                 isinstance(severity, str),
                 self.is_severity(severity),
@@ -41,11 +40,19 @@ class LogEntry:
             self.message = message
             self.increase_counter(self.severity)
 
+    def check_timestamp(self, timestamp: str) -> bool:
+        try:
+            _ = self.get_time_stamp(timestamp)
+        except:
+            return False
+
+        return True
+
     def get_time_stamp(self, iso_timestamp: str) -> str:
         """
         Parse ISO timestamp and return DD-MM-YYYY HH:MM:SS
         """
-        # handle this with library
+
         _date = datetime.fromisoformat(iso_timestamp)
         _timestamp = _date.strftime("%d-%m-%Y %H:%M:%S")
         return _timestamp
@@ -54,7 +61,7 @@ class LogEntry:
         """
         Check given severity against constant data
         """
-        return True if severity in self.statuses else False
+        return severity in self.statuses
 
     @classmethod
     def increase_counter(cls, severity):
@@ -90,9 +97,14 @@ def write_to_file(f_contents: str, file_name: str, extension: str):
     Write to string to file adding timestamp of creation
     """
     current_time = datetime.now()
-    _, output_dir_path = check_create_folder_in_main("output")
+    folder_path = Path(__file__).parent / "output"
+    try:
+        folder_path.mkdir()
+    except FileExistsError:
+        pass
+
     _file_name = file_name + "_" + str(current_time.timestamp()) + extension
-    _file_path = output_dir_path / _file_name
+    _file_path = folder_path / _file_name
     with open(_file_path, "w", encoding="utf-8") as f:
         f.write(f_contents)
 
@@ -111,32 +123,17 @@ def get_xml_from_string(xml_file: str) -> ET.Element:
         return read_xml
 
 
-def check_create_folder_in_main(folder_name: str) -> tuple[bool, Path]:
-    """
-    Checks whether folder exists if not creates. Returns path and bool if folder was created
-    """
-    folder_path = Path(__file__).parent / folder_name
-    if folder_path.exists() and folder_path.is_dir():
-        return (False, folder_path)
-    else:
-        try:
-            folder_path.mkdir()
-        except PermissionError:
-            print(f"Permission denied: Unable to create '{folder_path}'.")
-        except Exception as e:
-            print(f"An error occurred: {e}")
-        else:
-            return (True, folder_path)
-
-
 def handle_and_scan_input_folder() -> list:
     """
     Handles input folder for XMLs to be placed for parsing. If fodler exists retruns list of files
     """
-    dir_created, input_dir_path = check_create_folder_in_main("input")
-    _files = list(input_dir_path.glob("**/*.xml"))
-    if dir_created:
-        raise FileExistsError("Input folder just created, please add XMLs to parse")
+    folder_path = Path(__file__).parent / "input"
+    try:
+        folder_path.mkdir()
+    except FileExistsError:
+        pass
+
+    _files = list(folder_path.glob("**/*.xml"))
     if len(_files) < 1:
         raise FileExistsError("No files (XMLs) are present in input folder")
     return _files
