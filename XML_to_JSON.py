@@ -167,9 +167,9 @@ def get_arguments() -> list[tuple, datetime, datetime]:
         "-s", "--sev", help="filter by severity. possible: WARNING, INFO, ERROR"
     )
     parser.add_argument(
-        "-t1", "--tstart", help="time from to apply filter. Takes in date"
+        "-t1", "--tstart", help="time from to apply filter. Takes in date and time YYY-MM-DDTHH:mm:ss"
     )
-    parser.add_argument("-t2", "--tstop", help="time to to apply filter Takes in date")
+    parser.add_argument("-t2", "--tstop", help="time to to apply filter Takes in date and time YYY-MM-DDTHH:mm:ss")
     args = parser.parse_args()
 
     if LogEntry.is_severity(LogEntry, str(args.sev)):
